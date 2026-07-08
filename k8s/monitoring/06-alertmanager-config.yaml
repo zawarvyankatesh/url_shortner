@@ -23,5 +23,8 @@ data:
     receivers:
       - name: "webhook-receiver"
         webhook_configs:
-          - url: "http://alert-receiver.monitoring.svc:8080/"
+          # The AI incident-analysis agent. (During early testing you can point
+          # this back at http://alert-receiver.monitoring.svc:8080/ to just see
+          # the raw payload.)
+          - url: "http://incident-agent.ai-agent.svc:8080/alert"
             send_resolved: true

@@ -1,0 +1,24 @@
+# Non-secret agent configuration. Secrets (LLM_API_KEY, SMTP_PASSWORD) live in a
+# separate Kubernetes Secret - see 03-secret.example.yaml.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: incident-agent-config
+  namespace: ai-agent
+data:
+  PROMETHEUS_URL: "http://prometheus.monitoring.svc:9090"
+
+  LLM_ENDPOINT: "https://ai-framework1:8085"
+  LLM_API_VERSION: "2024-02-15-preview"
+  LLM_MODEL: "gpt-4.1"
+  LLM_NTNET_USER: "vyankatz@amdocs.com"
+  LLM_VERIFY_SSL: "false"
+
+  MAIL_TO: "vyankatz@amdocs.com"
+  MAIL_FROM: "incident-agent@amdocs.com"
+  # Fill these with your internal SMTP relay details:
+  SMTP_HOST: ""
+  SMTP_PORT: "25"
+  SMTP_USE_TLS: "false"
+
+  LOG_LEVEL: "INFO"

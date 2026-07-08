@@ -1,0 +1,51 @@
+# The agent's Kubernetes permissions. This is a PRIMARY guardrail: the agent can
+# only READ (get/list) a limited set of resources, cluster-wide. It cannot
+# create, update, delete, exec, or read Secrets. Even if the LLM misbehaves or a
+# log line contains an injection attempt, there is no write capability to abuse.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: incident-agent
+  namespace: ai-agent
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: incident-agent-readonly
+rules:
+  - apiGroups: [""]
+    resources:
+      - pods
+      - pods/log
+      - events
+      - services
+      - nodes
+      - namespaces
+      - endpoints
+      - persistentvolumeclaims
+    verbs: ["get", "list"]
+  - apiGroups: ["apps"]
+    resources:
+      - deployments
+      - replicasets
+      - statefulsets
+      - daemonsets
+    verbs: ["get", "list"]
+  - apiGroups: ["metrics.k8s.io"]
+    resources:
+      - pods
+      - nodes
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: incident-agent-readonly
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: incident-agent-readonly
+subjects:
+  - kind: ServiceAccount
+    name: incident-agent
+    namespace: ai-agent
