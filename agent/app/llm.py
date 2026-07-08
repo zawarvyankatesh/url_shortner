@@ -5,6 +5,8 @@ cluster access - it receives text in and returns text out.
 """
 
 import logging
+import os
+from urllib.parse import urlparse
 
 import httpx
 from openai import AzureOpenAI
@@ -44,12 +46,20 @@ CONFIDENCE: <low | medium | high> - <short justification>
 
 
 def _client() -> AzureOpenAI:
+    # Bypass any corporate HTTP proxy for the internal LLM host.
+    host = urlparse(settings.llm_endpoint).hostname or ""
+    if host:
+        os.environ["NO_PROXY"] = host
+        os.environ["no_proxy"] = host
+
     http_client = httpx.Client(verify=settings.llm_verify_ssl, timeout=settings.llm_timeout)
     return AzureOpenAI(
         azure_endpoint=settings.llm_endpoint,
         api_key=settings.llm_api_key,
         api_version=settings.llm_api_version,
         http_client=http_client,
+        # The proxy identifies the caller via this header (the NTNET user).
+        default_headers={"X-Effective-Caller": settings.llm_ntnet_user},
     )
 
 
@@ -76,8 +86,6 @@ def analyze(alert: Alert, context: str) -> str:
     response = client.chat.completions.create(
         model=settings.llm_model,
         temperature=settings.llm_temperature,
-        # 'user' identifies the caller to the proxy (NTNET user).
-        user=settings.llm_ntnet_user,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_prompt},
