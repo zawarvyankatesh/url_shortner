@@ -1,0 +1,46 @@
+version: 0.2
+
+# NOTE: The CodeBuild project must have "Privileged" mode enabled so Docker
+# commands can run (Project settings -> Environment -> Enable "Privileged").
+
+env:
+  variables:
+    # Docker Hub repository name for this app. Full ref becomes:
+    #   $DOCKER_REGISTRY_URL/$DOCKER_REGISTRY_USERNAME/$IMAGE_NAME
+    IMAGE_NAME: "url-shortener"
+  parameter-store:
+    DOCKER_REGISTRY_USERNAME: /myapp/docker-credentials/username
+    DOCKER_REGISTRY_PASSWORD: /myapp/docker-credentials/password
+    DOCKER_REGISTRY_URL: /myapp/docker-registry/url
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.12
+    commands:
+      - echo "Installing dependencies..."
+      - pip install -r requirements-dev.txt
+
+  pre_build:
+    commands:
+      - echo "Running tests..."
+      - pytest -q
+      - echo "Logging in to Docker registry..."
+      - echo "$DOCKER_REGISTRY_PASSWORD" | docker login -u "$DOCKER_REGISTRY_USERNAME" --password-stdin "$DOCKER_REGISTRY_URL"
+      # Short git commit SHA as an immutable tag (falls back to "latest").
+      - COMMIT_SHA="${CODEBUILD_RESOLVED_SOURCE_VERSION:-latest}"
+      - IMAGE_TAG="${COMMIT_SHA:0:7}"
+      - IMAGE_REPO="$DOCKER_REGISTRY_URL/$DOCKER_REGISTRY_USERNAME/$IMAGE_NAME"
+      - echo "Image repo -> $IMAGE_REPO (tags:latest,$IMAGE_TAG)"
+
+  build:
+    commands:
+      - echo "Building Docker image..."
+      - docker build -t "$IMAGE_REPO:latest" -t "$IMAGE_REPO:$IMAGE_TAG" .
+
+  post_build:
+    commands:
+      - echo "Pushing images..."
+      - docker push "$IMAGE_REPO:latest"
+      - docker push "$IMAGE_REPO:$IMAGE_TAG"
+      - echo "Build completed. Pushed $IMAGE_REPO:latest and :$IMAGE_TAG"
