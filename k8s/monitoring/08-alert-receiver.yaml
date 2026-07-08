@@ -1,0 +1,53 @@
+# A temporary webhook "sink" that simply logs whatever Alertmanager POSTs to it.
+# This lets you SEE the exact alert JSON payload (the same payload our AI agent
+# will consume in a later phase). Replace this with the agent Service later.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alert-receiver
+  namespace: monitoring
+  labels:
+    app: alert-receiver
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alert-receiver
+  template:
+    metadata:
+      labels:
+        app: alert-receiver
+    spec:
+      containers:
+        - name: echo
+          # Logs every incoming HTTP request (headers + JSON body) to stdout.
+          image: mendhak/http-https-echo:31
+          env:
+            - name: HTTP_PORT
+              value: "8080"
+          ports:
+            - name: http
+              containerPort: 8080
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alert-receiver
+  namespace: monitoring
+  labels:
+    app: alert-receiver
+spec:
+  selector:
+    app: alert-receiver
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+  type: ClusterIP

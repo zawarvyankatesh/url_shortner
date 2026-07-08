@@ -1,0 +1,65 @@
+# Prometheus main configuration. Stored as a ConfigMap and mounted into the
+# Prometheus pod at /etc/prometheus/prometheus.yml.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: monitoring
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+
+    # Where Prometheus sends alerts that fire.
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets: ["alertmanager.monitoring.svc:9093"]
+
+    # Alert rule files (mounted from the prometheus-rules ConfigMap).
+    rule_files:
+      - /etc/prometheus/rules/*.yaml
+
+    scrape_configs:
+      # 1) Prometheus scrapes itself.
+      - job_name: "prometheus"
+        static_configs:
+          - targets: ["localhost:9090"]
+
+      # 2) kube-state-metrics (cluster object metrics).
+      - job_name: "kube-state-metrics"
+        static_configs:
+          - targets: ["kube-state-metrics.monitoring.svc:8080"]
+
+      # 3) Any pod annotated with prometheus.io/scrape=true. This is how our
+      #    url-shortener pods get scraped - we added those annotations earlier.
+      - job_name: "kubernetes-pods"
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          # keep only pods that opted in via annotation
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: "true"
+          # use the annotated metrics path (default /metrics)
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          # use the annotated port -> rewrite the scrape address to IP:port
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+          # copy pod labels (e.g. app=url-shortener) into metric labels
+          - action: labelmap
+            regex: __meta_kubernetes_pod_label_(.+)
+          # add namespace and pod name as labels (handy for alerts/agent)
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: pod
