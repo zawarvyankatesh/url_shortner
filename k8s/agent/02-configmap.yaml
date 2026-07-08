@@ -15,9 +15,11 @@ data:
   LLM_VERIFY_SSL: "false"
 
   MAIL_TO: "vyankatz@amdocs.com"
-  MAIL_FROM: "incident-agent@amdocs.com"
-  # Fill these with your internal SMTP relay details:
-  SMTP_HOST: ""
+  # Use a real internal sender the relay will accept.
+  MAIL_FROM: "vyankatz@amdocs.com"
+  # Corporate SMTP relay (same one the node's Postfix forwards to). Pod egress is
+  # SNATed to the node IP, which the relay already trusts - so no auth/TLS needed.
+  SMTP_HOST: "umg.amdocs.com"
   SMTP_PORT: "25"
   SMTP_USE_TLS: "false"
 
