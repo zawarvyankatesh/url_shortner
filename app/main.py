@@ -1,5 +1,6 @@
 """FastAPI URL shortener.
 
+
 Endpoints:
     POST /shorten          create a short code for a URL
     GET  /{short_code}     redirect to the original URL
