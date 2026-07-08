@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: url-shortener
+  namespace: url-shortener
+  labels:
+    app: url-shortener
+spec:
+  selector:
+    app: url-shortener
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+  type: ClusterIP

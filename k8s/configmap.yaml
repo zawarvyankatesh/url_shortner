@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: url-shortener-config
+  namespace: url-shortener
+  labels:
+    app: url-shortener
+data:
+  # "redis" resolves to the Redis Service within the namespace.
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"
+  REDIS_DB: "0"
+  BASE_URL: "http://localhost:8080"
+  SHORT_CODE_LENGTH: "7"
+  LOG_LEVEL: "INFO"
