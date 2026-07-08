@@ -1,5 +1,5 @@
 # Non-secret agent configuration. Secrets (LLM_API_KEY, SMTP_PASSWORD) live in a
-# separate Kubernetes Secret - see 03-secret.example.yaml.
+# separate Kubernetes Secret created imperatively - see SECRET_SETUP.md.
 apiVersion: v1
 kind: ConfigMap
 metadata:
