@@ -5,9 +5,10 @@ version: 0.2
 
 env:
   variables:
-    # Docker Hub repository name for this app. Full ref becomes:
-    #   $DOCKER_REGISTRY_URL/$DOCKER_REGISTRY_USERNAME/$IMAGE_NAME
+    # Docker Hub repository names. Full ref becomes:
+    #   $DOCKER_REGISTRY_URL/$DOCKER_REGISTRY_USERNAME/<name>
     IMAGE_NAME: "url-shortener"
+    AGENT_IMAGE_NAME: "incident-agent"
   parameter-store:
     DOCKER_REGISTRY_USERNAME: /myapp/docker-credentials/username
     DOCKER_REGISTRY_PASSWORD: /myapp/docker-credentials/password
@@ -31,16 +32,23 @@ phases:
       - COMMIT_SHA="${CODEBUILD_RESOLVED_SOURCE_VERSION:-latest}"
       - IMAGE_TAG="${COMMIT_SHA:0:7}"
       - IMAGE_REPO="$DOCKER_REGISTRY_URL/$DOCKER_REGISTRY_USERNAME/$IMAGE_NAME"
-      - echo "Image repo -> $IMAGE_REPO (tags:latest,$IMAGE_TAG)"
+      - AGENT_REPO="$DOCKER_REGISTRY_URL/$DOCKER_REGISTRY_USERNAME/$AGENT_IMAGE_NAME"
+      - echo "App image   -> $IMAGE_REPO (tags:latest,$IMAGE_TAG)"
+      - echo "Agent image -> $AGENT_REPO (tags:latest,$IMAGE_TAG)"
 
   build:
     commands:
-      - echo "Building Docker image..."
+      - echo "Building url-shortener image..."
       - docker build -t "$IMAGE_REPO:latest" -t "$IMAGE_REPO:$IMAGE_TAG" .
+      - echo "Building incident-agent image..."
+      - docker build -t "$AGENT_REPO:latest" -t "$AGENT_REPO:$IMAGE_TAG" ./agent
 
   post_build:
     commands:
-      - echo "Pushing images..."
+      - echo "Pushing url-shortener image..."
       - docker push "$IMAGE_REPO:latest"
       - docker push "$IMAGE_REPO:$IMAGE_TAG"
-      - echo "Build completed. Pushed $IMAGE_REPO:latest and :$IMAGE_TAG"
+      - echo "Pushing incident-agent image..."
+      - docker push "$AGENT_REPO:latest"
+      - docker push "$AGENT_REPO:$IMAGE_TAG"
+      - echo "Build completed. Pushed both images (latest and $IMAGE_TAG)."
