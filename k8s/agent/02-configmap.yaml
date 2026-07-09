@@ -8,18 +8,20 @@ metadata:
 data:
   PROMETHEUS_URL: "http://prometheus.monitoring.svc:9090"
 
-  LLM_ENDPOINT: "https://ai-framework1:8085"
+  # Your Azure OpenAI-compatible LLM proxy endpoint.
+  LLM_ENDPOINT: "https://llm-proxy.internal:8085"
   LLM_API_VERSION: "2024-02-15-preview"
   LLM_MODEL: "gpt-4.1"
-  LLM_NTNET_USER: "vyankatz@amdocs.com"
+  # Caller identity sent to the proxy (X-Effective-Caller header).
+  LLM_NTNET_USER: "user@example.com"
   LLM_VERIFY_SSL: "false"
 
-  MAIL_TO: "vyankatz@amdocs.com"
-  # Use a real internal sender the relay will accept.
-  MAIL_FROM: "vyankatz@amdocs.com"
-  # Corporate SMTP relay (same one the node's Postfix forwards to). Pod egress is
-  # SNATed to the node IP, which the relay already trusts - so no auth/TLS needed.
-  SMTP_HOST: "umg.amdocs.com"
+  # Email recipient / sender for the incident reports.
+  MAIL_TO: "oncall@example.com"
+  MAIL_FROM: "incident-agent@example.com"
+  # Internal SMTP relay. Pod egress is SNATed to the node IP, so if the relay
+  # trusts the node it needs no auth/TLS.
+  SMTP_HOST: "smtp-relay.internal"
   SMTP_PORT: "25"
   SMTP_USE_TLS: "false"
 
