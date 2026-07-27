@@ -1,3 +1,4 @@
+# ---------- URL Shortener Deployment: runs the FastAPI app pods ----------
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -7,49 +8,49 @@ metadata:
     app: url-shortener
     app.kubernetes.io/part-of: url-shortener
 spec:
-  replicas: 2
+  replicas: 2                               # two identical pods for availability/load
   selector:
     matchLabels:
-      app: url-shortener
-  template:
+      app: url-shortener                    # manage pods labeled app=url-shortener
+  template:                                 # ---- pod blueprint ----
     metadata:
       labels:
-        app: url-shortener
-      annotations:
-        # Lets Prometheus discover and scrape the pods (used in the next phase).
-        prometheus.io/scrape: "true"
-        prometheus.io/port: "8000"
-        prometheus.io/path: "/metrics"
+        app: url-shortener                  # matched by the selector above AND the Service
+      annotations:                          # metadata read by other tools (not by K8s itself)
+        # These 3 tell Prometheus how to auto-discover and scrape these pods.
+        prometheus.io/scrape: "true"        # opt in to scraping
+        prometheus.io/port: "8000"          # scrape this container port
+        prometheus.io/path: "/metrics"      # scrape this HTTP path
     spec:
       containers:
         - name: url-shortener
           # Immutable tags are better for prod; using :latest here so kind pulls
           # the newest build. Swap to a git-SHA tag when you want reproducibility.
-          image: vyankateshzawar/url-shortener:latest
-          imagePullPolicy: Always
+          image: vyankateshzawar/url-shortener:latest  # image built by CodeBuild, pulled from Docker Hub
+          imagePullPolicy: Always           # always re-pull (needed because tag is :latest)
           ports:
-            - name: http
-              containerPort: 8000
+            - name: http                    # named port; probes/Service reference "http"
+              containerPort: 8000           # port uvicorn listens on inside the container
           envFrom:
             - configMapRef:
-                name: url-shortener-config
+                name: url-shortener-config   # inject ALL ConfigMap keys as env vars
           resources:
-            requests:
+            requests:                       # guaranteed minimum for scheduling
               cpu: 50m
               memory: 64Mi
-            limits:
+            limits:                         # hard ceiling; memory over 256Mi -> OOMKilled
               cpu: 250m
               memory: 256Mi
-          livenessProbe:
+          livenessProbe:                    # alive? if it fails 3x, K8s RESTARTS the container
             httpGet:
-              path: /healthz
+              path: /healthz                # simple check that never touches Redis
               port: http
-            initialDelaySeconds: 5
-            periodSeconds: 10
-            failureThreshold: 3
-          readinessProbe:
+            initialDelaySeconds: 5          # give the app 5s to boot first
+            periodSeconds: 10               # check every 10s
+            failureThreshold: 3             # 3 consecutive fails = restart
+          readinessProbe:                   # can serve? if it fails, K8s stops routing traffic
             httpGet:
-              path: /readyz
+              path: /readyz                 # returns 503 when Redis is down
               port: http
             initialDelaySeconds: 5
             periodSeconds: 5

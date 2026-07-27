@@ -8,21 +8,21 @@ metadata:
   namespace: monitoring
 data:
   alerts.yaml: |
-    groups:
+    groups:                                 # rules are organized into named groups
       # ---- Application-level alerts (from the app's own /metrics) ----
       - name: url-shortener-app
         rules:
-          - alert: UrlShortenerTargetDown
-            expr: up{job="kubernetes-pods", app="url-shortener"} == 0
-            for: 1m
+          - alert: UrlShortenerTargetDown   # alert name (becomes label alertname)
+            expr: up{job="kubernetes-pods", app="url-shortener"} == 0  # PromQL condition
+            for: 1m                         # must stay true 1 min before firing (Pending->Firing)
             labels:
-              severity: critical
-            annotations:
+              severity: critical            # extra label attached to the alert
+            annotations:                    # human text; {{ $labels.x }} is templated in
               summary: "URL shortener pod is unreachable"
               description: "Prometheus cannot scrape pod {{ $labels.pod }} in {{ $labels.namespace }} for over 1 minute. The pod may be crashing or overloaded."
 
           - alert: RedisDown
-            expr: redis_up == 0
+            expr: redis_up == 0             # our custom app gauge (set by storage.ping())
             for: 1m
             labels:
               severity: critical
@@ -31,10 +31,10 @@ data:
               description: "App pod {{ $labels.pod }} reports redis_up=0. Shorten/redirect requests will fail and readiness will drop."
 
           - alert: HighHttp5xxErrorRate
-            expr: |
+            expr: |                          # ratio of 5xx responses to all responses over 5m
               sum(rate(http_requests_total{status=~"5.."}[5m]))
               /
-              sum(rate(http_requests_total[5m])) > 0.10
+              sum(rate(http_requests_total[5m])) > 0.10   # fire if >10%
             for: 2m
             labels:
               severity: warning
@@ -46,7 +46,7 @@ data:
       - name: url-shortener-kubernetes
         rules:
           - alert: PodCrashLooping
-            expr: increase(kube_pod_container_status_restarts_total{namespace="url-shortener"}[5m]) > 2
+            expr: increase(kube_pod_container_status_restarts_total{namespace="url-shortener"}[5m]) > 2  # >2 restarts in 5m
             for: 2m
             labels:
               severity: critical
@@ -55,7 +55,7 @@ data:
               description: "Container {{ $labels.container }} in pod {{ $labels.pod }} restarted more than 2 times in the last 5 minutes."
 
           - alert: PodNotReady
-            expr: kube_pod_status_ready{namespace="url-shortener", condition="true"} == 0
+            expr: kube_pod_status_ready{namespace="url-shortener", condition="true"} == 0  # readiness=false
             for: 3m
             labels:
               severity: warning
@@ -64,7 +64,7 @@ data:
               description: "Pod {{ $labels.pod }} has not been Ready for over 3 minutes."
 
           - alert: ContainerWaiting
-            expr: kube_pod_container_status_waiting_reason{namespace="url-shortener"} == 1
+            expr: kube_pod_container_status_waiting_reason{namespace="url-shortener"} == 1  # stuck waiting
             for: 2m
             labels:
               severity: critical
@@ -73,8 +73,8 @@ data:
               description: "Container {{ $labels.container }} in pod {{ $labels.pod }} is stuck in state {{ $labels.reason }} (e.g. ImagePullBackOff, CrashLoopBackOff, CreateContainerConfigError)."
 
           - alert: PodOOMKilled
-            expr: kube_pod_container_status_last_terminated_reason{namespace="url-shortener", reason="OOMKilled"} == 1
-            for: 0m
+            expr: kube_pod_container_status_last_terminated_reason{namespace="url-shortener", reason="OOMKilled"} == 1  # killed for memory
+            for: 0m                         # fire immediately (no wait) - OOM is always real
             labels:
               severity: critical
             annotations:

@@ -1,6 +1,8 @@
+# Dedicated namespace for the whole observability stack:
+# Prometheus, Alertmanager, and kube-state-metrics all live here.
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: monitoring
+  name: monitoring                          # referenced as "*.monitoring.svc" in DNS
   labels:
     app.kubernetes.io/part-of: url-shortener

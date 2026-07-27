@@ -10,15 +10,15 @@ metadata:
 data:
   alertmanager.yml: |
     global:
-      resolve_timeout: 5m
+      resolve_timeout: 5m                   # mark an alert resolved if not re-sent within 5m
 
-    route:
+    route:                                  # the default routing tree for all alerts
       # group alerts of the same type/namespace into one notification
       group_by: ["alertname", "namespace"]
-      group_wait: 30s
-      group_interval: 5m
-      repeat_interval: 1h
-      receiver: "webhook-receiver"
+      group_wait: 30s                       # wait 30s to collect more of the same group first
+      group_interval: 5m                    # min gap before sending updates for a group
+      repeat_interval: 1h                   # re-send an unresolved alert at most hourly
+      receiver: "webhook-receiver"          # which receiver below to send to
 
     receivers:
       - name: "webhook-receiver"
@@ -26,5 +26,5 @@ data:
           # The AI incident-analysis agent. (During early testing you can point
           # this back at http://alert-receiver.monitoring.svc:8080/ to just see
           # the raw payload.)
-          - url: "http://incident-agent.ai-agent.svc:8080/alert"
-            send_resolved: true
+          - url: "http://incident-agent.ai-agent.svc:8080/alert"  # cross-namespace Service DNS
+            send_resolved: true             # also notify when the alert clears

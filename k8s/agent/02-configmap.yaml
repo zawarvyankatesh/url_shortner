@@ -5,24 +5,25 @@ kind: ConfigMap
 metadata:
   name: incident-agent-config
   namespace: ai-agent
-data:
-  PROMETHEUS_URL: "http://prometheus.monitoring.svc:9090"
+data:                                       # injected as env vars via envFrom -> config.py reads them
+  PROMETHEUS_URL: "http://prometheus.monitoring.svc:9090"  # collector queries this (cross-namespace)
 
   # Your Azure OpenAI-compatible LLM proxy endpoint.
   LLM_ENDPOINT: "https://llm-proxy.internal:8085"
-  LLM_API_VERSION: "2024-02-15-preview"
-  LLM_MODEL: "gpt-4.1"
+  LLM_API_VERSION: "2024-02-15-preview"     # API version the proxy expects
+  LLM_MODEL: "gpt-4.1"                       # model/deployment name to call
   # Caller identity sent to the proxy (X-Effective-Caller header).
   LLM_NTNET_USER: "user@example.com"
-  LLM_VERIFY_SSL: "false"
+  LLM_VERIFY_SSL: "false"                    # proxy uses a self-signed cert -> skip verify
 
   # Email recipient / sender for the incident reports.
-  MAIL_TO: "oncall@example.com"
+  MAIL_TO: "oncall@example.com"             # who receives the alert + RCA emails
   MAIL_FROM: "incident-agent@example.com"
   # Internal SMTP relay. Pod egress is SNATed to the node IP, so if the relay
   # trusts the node it needs no auth/TLS.
   SMTP_HOST: "smtp-relay.internal"
-  SMTP_PORT: "25"
+  SMTP_PORT: "25"                            # standard SMTP port
   SMTP_USE_TLS: "false"
 
   LOG_LEVEL: "INFO"
+  # NOTE: LLM_API_KEY and SMTP_PASSWORD are NOT here - they live in the Secret.

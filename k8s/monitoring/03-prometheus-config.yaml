@@ -6,28 +6,28 @@ metadata:
   name: prometheus-config
   namespace: monitoring
 data:
-  prometheus.yml: |
+  prometheus.yml: |                         # "|" = literal multi-line string block
     global:
-      scrape_interval: 15s
-      evaluation_interval: 15s
+      scrape_interval: 15s                  # how often to pull /metrics from targets
+      evaluation_interval: 15s              # how often to re-check alert rule expressions
 
-    # Where Prometheus sends alerts that fire.
+    # Where Prometheus PUSHES alerts once they fire (Prometheus -> Alertmanager).
     alerting:
       alertmanagers:
         - static_configs:
-            - targets: ["alertmanager.monitoring.svc:9093"]
+            - targets: ["alertmanager.monitoring.svc:9093"]  # Alertmanager Service DNS
 
-    # Alert rule files (mounted from the prometheus-rules ConfigMap).
+    # Alert rule files to load (mounted from the prometheus-rules ConfigMap).
     rule_files:
       - /etc/prometheus/rules/*.yaml
 
-    scrape_configs:
-      # 1) Prometheus scrapes itself.
+    scrape_configs:                         # the list of things to scrape
+      # 1) Prometheus scrapes itself (its own /metrics).
       - job_name: "prometheus"
         static_configs:
           - targets: ["localhost:9090"]
 
-      # 2) kube-state-metrics (cluster object metrics).
+      # 2) kube-state-metrics (cluster object metrics like restarts/OOM).
       - job_name: "kube-state-metrics"
         static_configs:
           - targets: ["kube-state-metrics.monitoring.svc:8080"]
@@ -36,27 +36,27 @@ data:
       #    url-shortener pods get scraped - we added those annotations earlier.
       - job_name: "kubernetes-pods"
         kubernetes_sd_configs:
-          - role: pod
-        relabel_configs:
-          # keep only pods that opted in via annotation
+          - role: pod                       # ask the K8s API for the list of pods
+        relabel_configs:                    # transform/filter discovered targets:
+          # keep only pods that opted in via annotation (drop everything else)
           - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
             action: keep
             regex: "true"
-          # use the annotated metrics path (default /metrics)
+          # use the annotated metrics path (e.g. /metrics)
           - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
             action: replace
             target_label: __metrics_path__
             regex: (.+)
-          # use the annotated port -> rewrite the scrape address to IP:port
+          # combine pod IP + annotated port -> the final "IP:port" scrape address
           - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
             action: replace
-            regex: ([^:]+)(?::\d+)?;(\d+)
-            replacement: $1:$2
+            regex: ([^:]+)(?::\d+)?;(\d+)    # capture host and the annotated port
+            replacement: $1:$2              # rebuild as host:port
             target_label: __address__
-          # copy pod labels (e.g. app=url-shortener) into metric labels
+          # copy pod labels (e.g. app=url-shortener) into the metric labels
           - action: labelmap
             regex: __meta_kubernetes_pod_label_(.+)
-          # add namespace and pod name as labels (handy for alerts/agent)
+          # add namespace + pod name as labels (these end up on the alert -> the agent uses them)
           - source_labels: [__meta_kubernetes_namespace]
             action: replace
             target_label: namespace

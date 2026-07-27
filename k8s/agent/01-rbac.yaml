@@ -2,41 +2,45 @@
 # only READ (get/list) a limited set of resources, cluster-wide. It cannot
 # create, update, delete, exec, or read Secrets. Even if the LLM misbehaves or a
 # log line contains an injection attempt, there is no write capability to abuse.
+# ---------- Identity: the ServiceAccount the agent pod runs as ----------
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: incident-agent
+  name: incident-agent                      # collector.py authenticates as this SA
   namespace: ai-agent
 ---
+# ---------- Permissions: READ-ONLY, cluster-wide (the main guardrail) ----------
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: incident-agent-readonly
 rules:
-  - apiGroups: [""]
-    resources:
-      - pods
-      - pods/log
-      - events
+  - apiGroups: [""]                         # core API group
+    resources:                              # exactly what the collector reads:
+      - pods                                # _pod_summary, _namespace_pods
+      - pods/log                            # _pod_logs (current + previous)
+      - events                              # _pod_events
       - services
       - nodes
       - namespaces
       - endpoints
       - persistentvolumeclaims
-    verbs: ["get", "list"]
-  - apiGroups: ["apps"]
+    verbs: ["get", "list"]                  # READ ONLY - no create/update/delete/exec
+  - apiGroups: ["apps"]                     # workloads (for future deployment inspection)
     resources:
       - deployments
       - replicasets
       - statefulsets
       - daemonsets
     verbs: ["get", "list"]
-  - apiGroups: ["metrics.k8s.io"]
+  - apiGroups: ["metrics.k8s.io"]           # live CPU/memory usage (metrics-server)
     resources:
       - pods
       - nodes
     verbs: ["get", "list"]
+# NOTE: "secrets" is deliberately NOT listed -> the agent cannot read Secrets.
 ---
+# ---------- Binding: grant the read-only ClusterRole to the agent's SA ----------
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
@@ -44,8 +48,8 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: incident-agent-readonly
+  name: incident-agent-readonly             # the permissions defined above
 subjects:
   - kind: ServiceAccount
-    name: incident-agent
+    name: incident-agent                    # to the agent's ServiceAccount
     namespace: ai-agent

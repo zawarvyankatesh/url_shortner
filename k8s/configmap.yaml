@@ -1,15 +1,18 @@
+# A ConfigMap holds NON-secret config as key/value pairs. The app Deployment
+# injects these as environment variables (envFrom), which config.py then reads.
+# Same image, different config per environment = the 12-factor principle.
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: url-shortener-config
-  namespace: url-shortener
+  name: url-shortener-config                # name the Deployment refers to in envFrom
+  namespace: url-shortener                  # must live in the same namespace as the app
   labels:
     app: url-shortener
-data:
-  # "redis" resolves to the Redis Service within the namespace.
-  REDIS_HOST: "redis"
-  REDIS_PORT: "6379"
-  REDIS_DB: "0"
-  BASE_URL: "http://localhost:8080"
-  SHORT_CODE_LENGTH: "7"
-  LOG_LEVEL: "INFO"
+data:                                       # the actual key/value config (all strings)
+  # "redis" resolves to the Redis Service within the namespace (Service DNS).
+  REDIS_HOST: "redis"                       # -> config.redis_host; how the app finds Redis
+  REDIS_PORT: "6379"                        # Redis port
+  REDIS_DB: "0"                             # which Redis logical DB to use
+  BASE_URL: "http://localhost:8080"         # prefix used to build returned short URLs
+  SHORT_CODE_LENGTH: "7"                    # length of generated codes
+  LOG_LEVEL: "INFO"                         # log verbosity

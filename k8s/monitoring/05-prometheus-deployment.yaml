@@ -1,3 +1,4 @@
+# ---------- Prometheus Deployment: scrapes, stores TSDB, evaluates alert rules ----------
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -15,18 +16,18 @@ spec:
       labels:
         app: prometheus
     spec:
-      serviceAccountName: prometheus
+      serviceAccountName: prometheus        # run as the SA with read-only discovery RBAC
       containers:
         - name: prometheus
           image: prom/prometheus:v2.54.1
-          args:
-            - "--config.file=/etc/prometheus/prometheus.yml"
-            - "--storage.tsdb.path=/prometheus"
+          args:                             # command-line flags passed to Prometheus
+            - "--config.file=/etc/prometheus/prometheus.yml"  # where it reads its config
+            - "--storage.tsdb.path=/prometheus"               # where it writes the TSDB
             # lets us reload config with an HTTP POST instead of restarting
             - "--web.enable-lifecycle"
           ports:
             - name: web
-              containerPort: 9090
+              containerPort: 9090           # Prometheus UI/API port
           resources:
             requests:
               cpu: 100m
@@ -34,39 +35,40 @@ spec:
             limits:
               cpu: 500m
               memory: 512Mi
-          volumeMounts:
+          volumeMounts:                     # where the volumes below are mounted in the container
             - name: config
-              mountPath: /etc/prometheus
+              mountPath: /etc/prometheus    # prometheus.yml lands here
             - name: rules
-              mountPath: /etc/prometheus/rules
+              mountPath: /etc/prometheus/rules  # alert rule files land here
             - name: data
-              mountPath: /prometheus
+              mountPath: /prometheus        # TSDB storage
           readinessProbe:
             httpGet:
-              path: /-/ready
+              path: /-/ready                # Prometheus's built-in readiness endpoint
               port: web
             initialDelaySeconds: 10
           livenessProbe:
             httpGet:
-              path: /-/healthy
+              path: /-/healthy              # Prometheus's built-in liveness endpoint
               port: web
             initialDelaySeconds: 10
-      volumes:
+      volumes:                              # define the sources for the mounts above
         - name: config
           configMap:
-            name: prometheus-config
+            name: prometheus-config         # from 03-prometheus-config.yaml
         - name: rules
           configMap:
-            name: prometheus-rules
+            name: prometheus-rules          # from 04-prometheus-rules.yaml
         # emptyDir = ephemeral storage; fine for a demo. Use a PVC to persist
         # metrics across pod restarts in a real deployment.
         - name: data
           emptyDir: {}
 ---
+# ---------- Service: exposes Prometheus at prometheus.monitoring.svc:9090 ----------
 apiVersion: v1
 kind: Service
 metadata:
-  name: prometheus
+  name: prometheus                          # the agent queries this DNS name for metrics
   namespace: monitoring
   labels:
     app: prometheus

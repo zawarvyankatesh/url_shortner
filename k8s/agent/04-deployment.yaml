@@ -1,3 +1,4 @@
+# ---------- The AI incident agent Deployment ----------
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -15,19 +16,19 @@ spec:
       labels:
         app: incident-agent
     spec:
-      serviceAccountName: incident-agent
+      serviceAccountName: incident-agent    # THIS attaches the read-only RBAC to the pod
       containers:
         - name: incident-agent
-          image: vyankateshzawar/incident-agent:latest
+          image: vyankateshzawar/incident-agent:latest  # built by CodeBuild from ./agent
           imagePullPolicy: Always
           ports:
             - name: http
-              containerPort: 8080
-          envFrom:
+              containerPort: 8080           # uvicorn serves the /alert webhook here
+          envFrom:                          # inject config as environment variables:
             - configMapRef:
-                name: incident-agent-config
+                name: incident-agent-config   # non-secret settings (from 02-configmap.yaml)
             - secretRef:
-                name: incident-agent-secrets
+                name: incident-agent-secrets  # secrets: LLM_API_KEY, SMTP_PASSWORD (see SECRET_SETUP.md)
           resources:
             requests:
               cpu: 50m
@@ -35,23 +36,24 @@ spec:
             limits:
               cpu: 500m
               memory: 512Mi
-          livenessProbe:
+          livenessProbe:                    # restart if the process dies
             httpGet:
               path: /healthz
               port: http
             initialDelaySeconds: 5
             periodSeconds: 10
-          readinessProbe:
+          readinessProbe:                   # only receive traffic once healthy
             httpGet:
               path: /healthz
               port: http
             initialDelaySeconds: 5
             periodSeconds: 10
 ---
+# ---------- Service: the webhook target Alertmanager POSTs alerts to ----------
 apiVersion: v1
 kind: Service
 metadata:
-  name: incident-agent
+  name: incident-agent                      # DNS: incident-agent.ai-agent.svc:8080
   namespace: ai-agent
   labels:
     app: incident-agent
@@ -62,4 +64,4 @@ spec:
     - name: http
       port: 8080
       targetPort: http
-  type: ClusterIP
+  type: ClusterIP                           # internal-only; reached by Alertmanager in-cluster

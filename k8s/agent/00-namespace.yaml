@@ -1,6 +1,7 @@
+# Isolated namespace for the AI incident agent, separate from the app it watches.
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: ai-agent
+  name: ai-agent                            # DNS: incident-agent.ai-agent.svc
   labels:
     app.kubernetes.io/part-of: url-shortener

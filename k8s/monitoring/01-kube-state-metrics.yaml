@@ -2,19 +2,21 @@
 # waiting/terminated reasons, readiness, etc.). These are what let us alert on
 # CrashLoopBackOff, ImagePullBackOff, OOMKilled and "pod not ready" - signals
 # that live in the Kubernetes API, not in the app itself.
+# ---------- Identity: the ServiceAccount kube-state-metrics runs as ----------
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: kube-state-metrics
+  name: kube-state-metrics                  # the pod's identity for API calls
   namespace: monitoring
 ---
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
+# ---------- Permissions: a read-only ClusterRole (list/watch across the cluster) ----------
+apiVersion: rbac.authorization.k8s.io/v1    # RBAC objects use this API group
+kind: ClusterRole                           # cluster-wide (not namespaced) permissions
 metadata:
   name: kube-state-metrics
 rules:
-  - apiGroups: [""]
-    resources:
+  - apiGroups: [""]                         # "" = the core API group
+    resources:                              # object types it may read...
       - configmaps
       - secrets
       - nodes
@@ -27,37 +29,39 @@ rules:
       - persistentvolumes
       - namespaces
       - endpoints
-    verbs: ["list", "watch"]
-  - apiGroups: ["apps"]
+    verbs: ["list", "watch"]                # ...but ONLY list/watch (read-only)
+  - apiGroups: ["apps"]                     # workload objects
     resources:
       - statefulsets
       - daemonsets
       - deployments
       - replicasets
     verbs: ["list", "watch"]
-  - apiGroups: ["batch"]
+  - apiGroups: ["batch"]                    # jobs/cronjobs
     resources:
       - cronjobs
       - jobs
     verbs: ["list", "watch"]
-  - apiGroups: ["autoscaling"]
+  - apiGroups: ["autoscaling"]             # HPAs
     resources:
       - horizontalpodautoscalers
     verbs: ["list", "watch"]
 ---
+# ---------- Binding: attach the ClusterRole above to the ServiceAccount ----------
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: kube-state-metrics
-roleRef:
+roleRef:                                    # WHICH permissions to grant
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: kube-state-metrics
-subjects:
+subjects:                                   # TO WHOM they are granted
   - kind: ServiceAccount
     name: kube-state-metrics
     namespace: monitoring
 ---
+# ---------- The kube-state-metrics Deployment itself ----------
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -75,13 +79,13 @@ spec:
       labels:
         app: kube-state-metrics
     spec:
-      serviceAccountName: kube-state-metrics
+      serviceAccountName: kube-state-metrics  # run as the SA above (grants the RBAC)
       containers:
         - name: kube-state-metrics
           image: registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.13.0
           ports:
             - name: http-metrics
-              containerPort: 8080
+              containerPort: 8080           # exposes generated metrics on 8080
           resources:
             requests:
               cpu: 20m
@@ -100,10 +104,11 @@ spec:
               port: http-metrics
             initialDelaySeconds: 5
 ---
+# ---------- Service: stable name Prometheus scrapes at :8080 ----------
 apiVersion: v1
 kind: Service
 metadata:
-  name: kube-state-metrics
+  name: kube-state-metrics                  # DNS: kube-state-metrics.monitoring.svc
   namespace: monitoring
   labels:
     app: kube-state-metrics

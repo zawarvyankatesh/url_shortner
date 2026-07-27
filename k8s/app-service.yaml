@@ -1,15 +1,17 @@
+# Service: one stable DNS name + virtual IP that load-balances across the 2 app pods.
+# Other pods reach the app at "url-shortener:80"; port-forward maps to this too.
 apiVersion: v1
 kind: Service
 metadata:
-  name: url-shortener
+  name: url-shortener                       # DNS name: url-shortener.url-shortener.svc
   namespace: url-shortener
   labels:
     app: url-shortener
 spec:
   selector:
-    app: url-shortener
+    app: url-shortener                      # send traffic to pods labeled app=url-shortener
   ports:
     - name: http
-      port: 80
-      targetPort: http
-  type: ClusterIP
+      port: 80                              # port the Service listens on
+      targetPort: http                      # forward to the pod's "http" port (8000)
+  type: ClusterIP                           # internal-only (use port-forward to reach locally)

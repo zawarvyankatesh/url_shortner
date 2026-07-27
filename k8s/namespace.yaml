@@ -1,6 +1,8 @@
-apiVersion: v1
-kind: Namespace
+# A Namespace is a logical "folder" that isolates a group of resources.
+# Everything for the app (pods, service, configmap, redis) lives in here.
+apiVersion: v1                              # core API group (v1) for Namespace
+kind: Namespace                             # the type of object we're creating
 metadata:
-  name: url-shortener
+  name: url-shortener                       # the namespace name other manifests reference
   labels:
-    app.kubernetes.io/part-of: url-shortener
+    app.kubernetes.io/part-of: url-shortener  # standard label grouping all app pieces

@@ -7,9 +7,9 @@ If SMTP is not configured, emails are skipped (and logged) so the agent still
 works end-to-end for local testing.
 """
 
-import html
+import html          # escape user/log text so it can't break the HTML email
 import logging
-import smtplib
+import smtplib        # Python's built-in SMTP client
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
@@ -19,11 +19,14 @@ from .models import Alert
 logger = logging.getLogger("agent.mailer")
 
 
+# Low-level helper: actually send one email (plain + HTML). Used by both emails below.
 def _send(subject: str, html_body: str, text_body: str) -> None:
+    # No SMTP configured? Skip sending (keeps the agent working for local tests).
     if not settings.smtp_host:
         logger.warning("SMTP not configured (SMTP_HOST empty); skipping email: %s", subject)
         return
 
+    # Build a multipart message with both a plain-text and an HTML version.
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
     msg["From"] = settings.mail_from
@@ -31,11 +34,12 @@ def _send(subject: str, html_body: str, text_body: str) -> None:
     msg.attach(MIMEText(text_body, "plain"))
     msg.attach(MIMEText(html_body, "html"))
 
+    # Connect to the SMTP relay and send; never crash the flow on mail failure.
     try:
         with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=30) as server:
-            if settings.smtp_use_tls:
+            if settings.smtp_use_tls:            # optional encryption
                 server.starttls()
-            if settings.smtp_user:
+            if settings.smtp_user:               # optional login
                 server.login(settings.smtp_user, settings.smtp_password)
             server.send_message(msg)
         logger.info("email sent: %s", subject)
@@ -43,7 +47,9 @@ def _send(subject: str, html_body: str, text_body: str) -> None:
         logger.error("failed to send email '%s': %s", subject, exc)
 
 
+# Email #1: sent immediately so on-call knows we're on it (before the LLM runs).
 def send_alert_received(alert: Alert) -> None:
+    # Pull the display fields off the alert labels/annotations.
     name = alert.labels.get("alertname", "unknown")
     ns = alert.labels.get("namespace", "n/a")
     pod = alert.labels.get("pod", "n/a")
@@ -70,6 +76,7 @@ def send_alert_received(alert: Alert) -> None:
     _send(subject, html_body, text_body)
 
 
+# Email #2: the final root-cause analysis from the LLM.
 def send_analysis(alert: Alert, analysis: str) -> None:
     name = alert.labels.get("alertname", "unknown")
     severity = alert.labels.get("severity", "n/a")

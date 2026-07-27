@@ -7,7 +7,11 @@ come from a Kubernetes Secret. Nothing sensitive is hard-coded here.
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+# Every field below is auto-filled from an environment variable of the same name
+# (e.g. PROMETHEUS_URL -> prometheus_url). In K8s those env vars come from the
+# ConfigMap (non-secret) and the Secret (LLM_API_KEY, SMTP_PASSWORD).
 class Settings(BaseSettings):
+    # Also read a local .env file if present (handy for laptop testing); ignore unknown keys.
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     # --- Prometheus (read-only queries) ---
@@ -39,4 +43,5 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
 
 
+# Create one shared settings object the whole agent imports and reuses.
 settings = Settings()

@@ -1,3 +1,4 @@
+# ---------- Alertmanager Deployment: receives fired alerts, groups + routes them ----------
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -19,11 +20,11 @@ spec:
         - name: alertmanager
           image: prom/alertmanager:v0.27.0
           args:
-            - "--config.file=/etc/alertmanager/alertmanager.yml"
-            - "--storage.path=/alertmanager"
+            - "--config.file=/etc/alertmanager/alertmanager.yml"  # routing/receiver config
+            - "--storage.path=/alertmanager"                      # silence/state storage
           ports:
             - name: web
-              containerPort: 9093
+              containerPort: 9093           # Alertmanager receives alerts on this port
           resources:
             requests:
               cpu: 25m
@@ -33,7 +34,7 @@ spec:
               memory: 128Mi
           volumeMounts:
             - name: config
-              mountPath: /etc/alertmanager
+              mountPath: /etc/alertmanager  # alertmanager.yml lands here
             - name: data
               mountPath: /alertmanager
           readinessProbe:
@@ -44,10 +45,11 @@ spec:
       volumes:
         - name: config
           configMap:
-            name: alertmanager-config
+            name: alertmanager-config       # from 06-alertmanager-config.yaml
         - name: data
           emptyDir: {}
 ---
+# ---------- Service: Prometheus sends alerts to alertmanager.monitoring.svc:9093 ----------
 apiVersion: v1
 kind: Service
 metadata:

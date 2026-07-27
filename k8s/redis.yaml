@@ -1,5 +1,6 @@
-apiVersion: apps/v1
-kind: Deployment
+# ---------- Redis Deployment: runs the Redis data store pod ----------
+apiVersion: apps/v1                         # Deployments live in the apps/v1 API group
+kind: Deployment                            # manages a self-healing set of identical pods
 metadata:
   name: redis
   namespace: url-shortener
@@ -7,51 +8,52 @@ metadata:
     app: redis
     app.kubernetes.io/part-of: url-shortener
 spec:
-  replicas: 1
+  replicas: 1                               # one Redis pod (single instance for this demo)
   selector:
     matchLabels:
-      app: redis
-  template:
+      app: redis                            # this Deployment manages pods with label app=redis
+  template:                                 # ---- the blueprint for each pod ----
     metadata:
       labels:
-        app: redis
+        app: redis                          # pods get this label (matched by selector + Service)
     spec:
       containers:
         - name: redis
-          image: redis:7-alpine
+          image: redis:7-alpine             # official lightweight Redis image
           ports:
-            - name: redis
-              containerPort: 6379
+            - name: redis                   # name the port so probes/Service can refer to it
+              containerPort: 6379           # port Redis listens on inside the container
           resources:
-            requests:
-              cpu: 25m
+            requests:                       # guaranteed minimum (used for scheduling)
+              cpu: 25m                      # 25 millicores = 0.025 CPU
               memory: 32Mi
-            limits:
+            limits:                         # hard ceiling (exceeding memory -> OOMKilled)
               cpu: 200m
               memory: 128Mi
-          livenessProbe:
+          livenessProbe:                    # "is Redis alive?" - restart the container if not
             tcpSocket:
-              port: redis
-            initialDelaySeconds: 5
-            periodSeconds: 10
-          readinessProbe:
+              port: redis                   # just check the TCP port is open
+            initialDelaySeconds: 5          # wait 5s after start before first check
+            periodSeconds: 10               # then check every 10s
+          readinessProbe:                   # "can Redis serve?" - remove from Service if not
             exec:
-              command: ["redis-cli", "ping"]
+              command: ["redis-cli", "ping"]  # run PING inside the container; expects PONG
             initialDelaySeconds: 3
             periodSeconds: 5
----
+---                                         # "---" separates two objects in one file
+# ---------- Redis Service: stable DNS name "redis" in front of the pod ----------
 apiVersion: v1
 kind: Service
 metadata:
-  name: redis
+  name: redis                              # THIS name is the DNS name the app connects to
   namespace: url-shortener
   labels:
     app: redis
 spec:
   selector:
-    app: redis
+    app: redis                             # route traffic to pods labeled app=redis
   ports:
     - name: redis
-      port: 6379
-      targetPort: redis
-  type: ClusterIP
+      port: 6379                           # port the Service exposes
+      targetPort: redis                    # forward to the container port named "redis" (6379)
+  type: ClusterIP                          # internal-only virtual IP (not exposed outside)

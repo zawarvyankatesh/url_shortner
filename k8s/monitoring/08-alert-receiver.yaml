@@ -1,6 +1,7 @@
 # A temporary webhook "sink" that simply logs whatever Alertmanager POSTs to it.
 # This lets you SEE the exact alert JSON payload (the same payload our AI agent
 # will consume in a later phase). Replace this with the agent Service later.
+# ---------- Debug-only Deployment: echoes whatever Alertmanager POSTs ----------
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -20,10 +21,11 @@ spec:
     spec:
       containers:
         - name: echo
-          # Logs every incoming HTTP request (headers + JSON body) to stdout.
+          # Logs every incoming HTTP request (headers + JSON body) to stdout,
+          # so `kubectl logs` shows the exact alert payload for debugging.
           image: mendhak/http-https-echo:31
           env:
-            - name: HTTP_PORT
+            - name: HTTP_PORT               # tell the echo server which port to listen on
               value: "8080"
           ports:
             - name: http
@@ -36,6 +38,7 @@ spec:
               cpu: 100m
               memory: 64Mi
 ---
+# ---------- Service for the debug receiver (swap AM's webhook here to test) ----------
 apiVersion: v1
 kind: Service
 metadata:
