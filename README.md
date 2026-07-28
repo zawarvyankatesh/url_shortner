@@ -231,3 +231,30 @@ self-contained); in production the agent would run in a separate failure domain.
 - An **evaluation harness** scoring the agent's RCA against known incident types.
 - Convert the fixed pipeline into a **tool-calling agent** that decides which
   evidence to gather.
+
+
+##commands in handy
+
+root in 🌐 ilcepoc3638 in ~ on ☁️  (us-east-1)
+❯ curl http://127.0.0.1:8080/healthz
+{"status":"ok"}
+root in 🌐 ilcepoc3638 in ~ on ☁️  (us-east-1)
+❯ curl -s -X POST http://127.0.0.1:8080/shorten \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://example.com"}'
+{"short_code":"0dzAN1o","short_url":"http://localhost:8080/0dzAN1o","original_url":"https://example.com/"}
+root in 🌐 ilcepoc3638 in ~ on ☁️  (us-east-1)
+❯ curl -i http://127.0.0.1:8080/0dzAN1o
+HTTP/1.1 307 Temporary Redirect
+date: Tue, 28 Jul 2026 11:47:56 GMT
+server: uvicorn
+content-length: 0
+location: https://example.com/
+
+curl: (6) Could not resolve host: example.com
+
+root in 🌐 ilcepoc3638 in ~ on ☁️  (us-east-1)
+❯ curl http://127.0.0.1:8080/metrics
+
+
+
