@@ -258,3 +258,17 @@ root in 🌐 ilcepoc3638 in ~ on ☁️  (us-east-1)
 
 
 
+
+
+kubectl port-forward -n url-shortener svc/url-shortener 8080:80
+
+curl -s -X POST http://127.0.0.1:8080/shorten \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://example.com"}'
+
+
+curl -i http://127.0.0.1:8080/abc123
+
+kubectl port-forward -n monitoring svc/prometheus 9090:9090
+kubectl port-forward -n monitoring svc/alertmanager 9093:9093
+
